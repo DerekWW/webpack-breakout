@@ -1,5 +1,14 @@
-import sum from './sum';
-import './image_viewer'; // not exporting code from image viewer, just needs to run
+import _ from 'lodash';
+import React from 'react';
+import Chart from 'chart.js';
 
-const total = sum(10, 5)
-console.log(total);
+const button = document.createElement('button');
+button.innerText = 'Click me!!!';
+button.onclick = () => {
+  System.import('./image_viewer')
+    .then((module) => {
+      console.log('hola'); 
+    })
+};
+
+document.body.appendChild(button);

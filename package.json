@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "clean": "rimraf build",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack"
+    "build": " npm run clean && webpack",
+    "serve": "webpack-dev-server"
   },
   "keywords": [],
   "author": "Derek Wierson <derek.wierson@gmail.com>",
@@ -14,16 +16,22 @@
     "babel-core": "^6.25.0",
     "babel-loader": "^7.1.1",
     "babel-preset-env": "^1.5.2",
+    "chart.js": "^2.6.0",
     "css-loader": "^0.28.4",
+    "lodash": "^4.17.4",
+    "react": "^15.6.1",
     "style-loader": "^0.18.2",
     "webpack": "^3.0.0"
   },
   "devDependencies": {
     "extract-text-webpack-plugin": "^2.1.2",
     "file-loader": "^0.11.2",
+    "html-webpack-plugin": "^2.29.0",
     "image-webpack-loader": "^3.3.1",
     "node-sass": "^4.5.3",
+    "rimraf": "^2.6.1",
     "sass-loader": "^6.0.6",
-    "url-loader": "^0.5.9"
+    "url-loader": "^0.5.9",
+    "webpack-dev-server": "^2.5.0"
   }
 }

@@ -173,7 +173,45 @@ We should now have a style.css file in our build folder! The only problem is tha
 
 __SASS__
 
-We can also use webpack to compile SASS for us! Lets make a image.scss file in our styles folder!
+We can also use webpack to compile SASS for us! Lets make a party.scss file in our styles folder! Inside party.scss lets change our background color of our page!
+
+
+```css
+$back: teal;
+
+body {
+  background-color: $back;
+}
+```
+
+We do need to install a few packages in order to use sass.
+```bash
+npm install --save-dev node-sass sass-loader
+```
+And then wire it up in our config! We can add this as another entry in the rules array.
+
+```javascript
+{
+ use: ExtractTextPlugin.extract({
+     use: [
+       {
+         loader: "css-loader" // translates CSS into CommonJS
+       }, {
+         loader: "sass-loader" // compiles Sass to CSS
+       }
+     ]
+ }),
+   test: /\.scss$/,
+ }
+```
+
+This will take our SASS and transpile it to CSS for us. It will then add it to our single css file through the extract text plugin. Even if we run our build now, nothing will change on our page! This is because we still need to import our new file or else webpack wont grab it when it builds our project. In image_viewer.js lets add the following line:
+```
+ // image_viewer.js
+
+ import '../styles/party.scss';
+```
+
 
 __Image Loaders__
 
@@ -239,3 +277,165 @@ output: {
 
 - [image-webpack-loader](https://github.com/tcoopman/image-webpack-loader)
 - [url-loader](https://github.com/webpack-contrib/url-loader)
+
+__Code Splitting__
+
+As of right now we only have a single javascript file, bundle.js, but what happens when our project gets very large? Or maybe one page of our site is extremely code heavy while the rest are not? Code splitting allows us to break up our code and only load modules when we choose to do so. We will modify index.js(our webpack entry point) so that it contains a button. When this button is click we will request image_viewer.js which will bring in our images. Lets start by deleting everything we have in index.js and replace it with the following.
+
+```javascript
+const button = document.createElement('button');
+button.innerText = 'Click me!!!';
+
+button.onclick = () => {
+  System.import('./image_viewer')
+    .then((module) => {
+      // console.log(module);
+    })
+};
+
+document.body.appendChild(button);
+```
+
+If we watch our network tab in chrome we can see that our second js file is only being loaded when we click the button!
+
+__Vendor Code Caching__
+
+One major performance tweak we can make with webpack is the ability to separate out our 3rd party packages into their own bundle. Since we actually rarely update versions of our vendor code, we can seperate it from our code. This allows a browser to only load in our code if we have changed something vs loading all of the vendor code also. We dont really have any packages that we are using so lets install some and import them into our project
+
+```javascript
+npm install --save lodash react chart.js
+```
+
+Now lets import them into our index.js file so that webpack will include them in our bundle
+
+```javascript
+import _ from 'lodash';
+import React from 'react';
+import Chart from 'chart.js';
+```
+
+If we run this now all of these will be included into bundle.js, but it would be better to have them all separated into their own file. We will update our webpack config to create a separate vendor bundle.
+
+At the top of our webpack config lets modify it to create vendor.js
+
+```javascript
+const VENDOR_LIBS = [
+  'react', 'lodash', 'chart.js'           //new
+];
+
+const config = {
+  entry: {                                //changed
+    bundle: './src/index.js',
+    vendor: VENDOR_LIBS               
+  },
+  output: {
+    path: path.resolve(__dirname, 'build'),
+    filename: '[name].js',                // changed
+    publicPath: 'build/'
+  },
+```
+
+This will produce a vendor.js file that contains the packages we specified in the VENDOR_LIBS array.  However webpack will still include these libraries in the normal bundle file. We can tell webpack to not double bundle these libraries using a built-in plugin. In our config add the following plugin.
+
+```javascript
+plugins: [
+  new ExtractTextPlugin('style.css'),
+  new webpack.optimize.CommonsChunkPlugin({
+    name: 'vendor'
+  })
+]
+```
+
+And at the top of our config lets require in webpack
+```javascript
+const webpack = require('webpack');
+```
+
+This plugin will look through the code we are putting into vendor and make sure that it doesn't also add it to bundle.js, however if we build this and check our page we will notice that our page is broken! We have some of our code in a seperate file, but we haven't included a script tag for it in our html! Lets make it so that no matter how many files we create they will be auto added to our html!
+
+```bash
+npm install --save-dev html-webpack-plugin
+```
+
+then we can require it in our config file ```const HtmlWebpackPlugin = require('html-webpack-plugin') ``` and include it in out plugins section. Html-webpack-template takes a template to build a new index.html off of. So now we should move our index.html into our src directory. We also need to rid of a few things in different files. Last step is to delete our script tag in our html file We must also update our ExtractTextPlugin by setting allChunks to true.
+
+```javascript
+//webpack.config
+plugins: [
+  new webpack.optimize.CommonsChunkPlugin({
+    name: 'vendor'
+  }),
+  new HtmlWebpackPlugin({
+    template: './src/index.html'
+  }),
+  new ExtractTextPlugin({
+    filename: 'style.css',
+    allChunks: true
+  })
+]
+```
+
+```javascript
+//webpack config
+output: {
+  path: path.resolve(__dirname, 'build'),
+  filename: '[name].js',
+  // publicPath: 'build/'             Changed
+},
+```
+
+and last we can remove the folder preface in our html template from ```./build/styles.css``` to ```styles.css```
+
+If we build it now our page should be working again. However we can take this one step further and hash our files. This way when we change a file it will get a new hash and the browser wont even check to see if it has a cached version. In our webpack config we will change 2 things.
+
+```javascript
+output: {
+  path: path.resolve(__dirname, 'build'),
+  filename: '[name].[chunkhash].js',
+  // publicPath: 'build/'
+},
+//
+//
+//
+//
+new webpack.optimize.CommonsChunkPlugin({
+  names: ['vendor', 'manifest']
+}),
+```
+
+The problem now is that we have different files names each time and the old ones are not being overwritten, we can fix that with a easy npm package.
+
+
+```bash
+npm install --save-dev rimraf
+```
+
+and then in package.json update our scripts
+
+```json
+"scripts": {
+  "clean": "rimraf build",
+  "test": "echo \"Error: no test specified\" && exit 1",
+  "build": " npm run clean && webpack"
+},
+```
+
+__WEBPACK DEV SERVER__
+
+Webpack dev server is an amazing tools that can instantly rebuild our project locally if we have made a change to our code.
+
+```npm install --save-dev webpack-dev-server ```
+
+And in package.json:
+```json
+"serve": "webpack-dev-server"
+```
+
+Now all we have to do is run ```npm run serve``` and webpack will serve our files for us, and recompile anytime we change something.
+
+
+
+
+
+
+Fin.
